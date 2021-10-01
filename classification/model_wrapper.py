@@ -4,16 +4,6 @@ import torch.nn.functional as F
 from torch.nn import Parameter
 import math
 
-class Model_head(nn.Module):
-    def __init__(self,num_classes,in_features):
-        super(Model_head, self).__init__()
-        self.layers = nn.ModuleList()
-        for i in range(len(num_classes)):
-            self.layers.append(nn.Linear(in_features,num_classes[i],bias=True))
-
-    def forward(self,x):
-        return [self.layers[i](x) for i in range(len(self.layers))]
-
 class Classification_model(nn.Module):
     def __init__(self,base_model,model_type,num_classes):
         super(Classification_model,self).__init__()

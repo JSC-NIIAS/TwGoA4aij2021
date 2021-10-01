@@ -97,6 +97,13 @@ def get_x_y(df):
     classes = target_columns
     return x,y ,classes
 
+def get_data_lists(images_path,labels_path):
+    x_images = [file for file in os.listdir(images_path)]
+    x_train = [os.path.join(images_path, file) for file in x_images]
+    y_train = [read_label(os.path.join(labels_path, file.strip(".png") + ".txt")) for
+               file in x_images]
+    return x_train,y_train
+
 class ModelEmaV2(nn.Module):
     """ Model Exponential Moving Average V2
     Keep a moving average of everything in the model state_dict (parameters and buffers).

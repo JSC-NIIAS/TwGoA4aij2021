@@ -1,0 +1,34 @@
+project : baseline_trailing_switch_classification
+experiment_name : tr_switch_sslresnet18
+savepath : f_switch.pt
+final_model_path: fswitch_infer.pt
+
+dataset :
+  test_size : 0.2
+  mean0: 0.485
+  mean1: 0.456
+  mean2: 0.406
+  std0: 0.229
+  std1: 0.224
+  std2: 0.225
+  split_type: stratified
+
+model :
+  name : ssl_resnet18
+  num_classes : 3
+  pretrained : True
+  model_type : Single
+  num_classes_mt : 3
+
+train:
+  epochs: 100
+  optimizer : Adam
+  lr : 0.00003
+  momentum : 0.9
+  weight_decay : 0.00001
+  scheduler : StepLR
+  step_size : 30
+  gamma : 0.5
+  ema : False
+  ema_decay : 0.9998
+  accumulate_batch_size : 64

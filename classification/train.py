@@ -11,23 +11,20 @@ from tqdm import tqdm
 import timm
 import logging
 import os
-from utils import ModelEmaV2, select_device, torch_distributed_zero_first,init_seeds,set_logging,get_x_y,createCheckpoint,read_label
+from utils import ModelEmaV2, select_device, torch_distributed_zero_first,init_seeds,set_logging,get_x_y,createCheckpoint,read_label,get_data_lists
 from model_wrapper import Classification_model
-from csv_utils import CSVEditor
 import argparse
 import wandb
 import yaml
-from skmultilearn.model_selection import iterative_train_test_split,IterativeStratification
 import sklearn
-from losses import compute_loss,create_loss_function,FocalLoss
+from losses import FocalLoss
 from sklearn.model_selection import train_test_split
 from dataset import create_dataloader
-from metrics import Metrics_factory
 from test import test_model
 logger = logging.getLogger(__name__)
 import torchmetrics
 
-def train_model(x_train,y_train,hyp,opt,device,wandb):
+def train_model(hyp,opt,device,wandb):
     batch_size,total_batch_size =  opt.batch_size,opt.total_batch_size
     rank = opt.global_rank
     cuda = device.type != 'cpu'
@@ -36,7 +33,6 @@ def train_model(x_train,y_train,hyp,opt,device,wandb):
         experiment_dict = yaml.load(f, Loader=yaml.FullLoader)
     model_pretrained = timm.create_model(experiment_dict['model']['name'], pretrained=experiment_dict['model']['pretrained'],num_classes=experiment_dict['model']['num_classes'])
     model = Classification_model(model_pretrained,experiment_dict['model']['model_type'],experiment_dict['model']['num_classes_mt']).to(device)
-    print(model)
     nbs = experiment_dict['train']['accumulate_batch_size']
     accumulate = max(round(nbs / total_batch_size), 1)
     experiment_dict['train']['weight_decay'] *= total_batch_size * accumulate / nbs
@@ -73,7 +69,7 @@ def train_model(x_train,y_train,hyp,opt,device,wandb):
                                project=experiment_dict['project'],
                                name=experiment_dict['experiment_name'],
                                id=None)
-
+    x_train,y_train=get_data_lists(experiment_dict["dataset"]["images_path"],experiment_dict["dataset"]["labels_path"])
     loss_function = FocalLoss(gamma=2).to(device)
     metrics = torchmetrics.F1(average="macro",num_classes=experiment_dict["model"]["num_classes_mt"]).to(device)
     X_train, X_test, y_train, y_test =train_test_split(x_train, y_train, test_size=experiment_dict['dataset']['test_size'], random_state=2 + rank,stratify=y_train)
@@ -162,8 +158,4 @@ if __name__ == '__main__':
         assert opt.batch_size % opt.world_size == 0, '--batch-size must be multiple of CUDA device count'
         opt.batch_size = opt.total_batch_size // opt.world_size
     logger.info(opt)
-    x_images=[file for file in os.listdir("/files/hackhathon_baseline/sw_t_train/images")]
-    x_train=[os.path.join("/files/hackhathon_baseline/sw_t_train/images",file) for file in x_images]
-    y_train=[read_label(os.path.join("/files/hackhathon_baseline/sw_t_train/labels",file.strip(".png")+".txt")) for file in x_images]
-    print(x_train[0:2],y_train[0:2])
-    train_model(x_train,y_train,opt.hyp,opt,device,wandb)
+    train_model(opt.hyp,opt,device,wandb)
