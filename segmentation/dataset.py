@@ -24,12 +24,12 @@ def create_dataloader(x,y,batch_size,mode="train",hyp=None, augment=False,
     nw = min([os.cpu_count() // world_size, batch_size if batch_size > 1 else 0, workers])  # number of workers
     sampler = torch.utils.data.distributed.DistributedSampler(dataset) if rank != -1 else None
     dataloader = InfiniteDataLoader(dataset,
-                                    shuffle=True,
+                                    shuffle=False,
                                     batch_size=batch_size,
                                     num_workers=nw,
                                     sampler=sampler,
                                     pin_memory=True,
-                                    collate_fn=TrainDataset.collate_fn,drop_last=True)  # torch.utils.data.DataLoader()
+                                    collate_fn=TrainDataset.collate_fn)  # torch.utils.data.DataLoader()
     return dataloader, dataset
 
 
@@ -77,9 +77,6 @@ class TrainDataset(torch.utils.data.Dataset):
             'train': self.get_train_transforms(),
             'val': self.get_val_transforms(),
         }
-
-        print(self.transformations)
-
     def get_train_transforms(self):
         alb_transforms = A.Compose([
             A.RandomBrightnessContrast(p=0.5),

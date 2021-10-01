@@ -138,3 +138,12 @@ def createCheckpoint(filename,model,optimizer,epoch,scheduler):
                 'scheduler' : scheduler.state_dict()
     } # save all important stuff
     torch.save(checkpoint, filename)
+
+def get_data_lists(train_images_path,train_masks_path,val_images_path,val_masks_path):
+    images = [file for file in os.listdir(train_images_path)]
+    train_images_paths = [os.path.join(train_images_path, file) for file in images]
+    train_masks_paths = [os.path.join(train_masks_path, file) for file in images]
+    val_images = [file for file in os.listdir(val_images_path)]
+    val_images_paths = [os.path.join(val_images_path, file) for file in val_images]
+    val_masks_paths = [os.path.join(val_masks_path, file) for file in val_images]
+    return train_images_paths,train_masks_paths,val_images_paths,val_masks_paths

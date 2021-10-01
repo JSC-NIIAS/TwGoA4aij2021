@@ -12,7 +12,7 @@ from tqdm import tqdm
 import timm
 import logging
 import os
-from utils import ModelEmaV2, select_device, torch_distributed_zero_first,init_seeds,set_logging,get_x_y,createCheckpoint
+from utils import ModelEmaV2, select_device, torch_distributed_zero_first,init_seeds,set_logging,get_x_y,createCheckpoint,get_data_lists
 import argparse
 import wandb
 import yaml
@@ -23,19 +23,19 @@ from dataset import create_dataloader
 from test import test_model
 logger = logging.getLogger(__name__)
 
-def train_model(train_images,train_labels,val_images,val_labels,hyp,opt,device,wandb):
+def train_model(hyp,opt,device,wandb):
     batch_size,total_batch_size =  opt.batch_size,opt.total_batch_size
     rank = opt.global_rank
     cuda = device.type != 'cpu'
     init_seeds(2 + rank)
     with open(opt.hyp) as f:
         experiment_dict = yaml.load(f, Loader=yaml.FullLoader)
-    model = smp.Linknet(encoder_name='resnet34', encoder_depth=5, encoder_weights='imagenet', decoder_use_batchnorm=True, in_channels=3, classes=4, activation=None, aux_params=None).to(device)
+    model = smp.Linknet(encoder_name=experiment_dict["model"]["name"], encoder_depth=5, encoder_weights='imagenet', decoder_use_batchnorm=True, in_channels=3, classes=experiment_dict["model"]["classes"], aux_params=None).to(device)
     nbs = experiment_dict['train']['accumulate_batch_size']
     accumulate = max(round(nbs / total_batch_size), 1)
     experiment_dict['train']['weight_decay'] *= total_batch_size * accumulate / nbs
-    loss_bce = smp.losses.SoftCrossEntropyLoss(smooth_factor=0.1).to(device)
-    loss_jacard = smp.losses.DiceLoss(mode="multiclass").to(device)
+    loss_sce = smp.losses.SoftCrossEntropyLoss(smooth_factor=0.1).to(device)
+    loss_dice = smp.losses.DiceLoss(mode="multiclass").to(device)
     metrics = smp.utils.metrics.IoU().to(device)
 
     if experiment_dict['train']['optimizer'] == 'SGD':
@@ -69,7 +69,7 @@ def train_model(train_images,train_labels,val_images,val_labels,hyp,opt,device,w
                                project=experiment_dict['project'],
                                name=experiment_dict['experiment_name'],
                                id=None)
-
+    train_images,train_labels,val_images,val_labels = get_data_lists(experiment_dict["dataset"]["path_to_train_images"],experiment_dict["dataset"]["path_to_train_masks"],experiment_dict["dataset"]["path_to_val_masks"],experiment_dict["dataset"]["path_to_val_masks"])
     dataloader, dataset = create_dataloader(train_images,train_labels, batch_size,mode="train",
                                             hyp=experiment_dict['dataset'],
                                             rank=rank, world_size=opt.world_size, workers=opt.workers)
@@ -98,11 +98,10 @@ def train_model(train_images,train_labels,val_images,val_labels,hyp,opt,device,w
             ni = i + nb * epoch  # number integrated batches (since train start)
             imgs = imgs.to(device, non_blocking=True).float()
             with amp.autocast(enabled=cuda):
-                print(imgs.size())
                 pred = model(imgs)  # forward
-                loss_value_bce = loss_bce.forward(pred,targets.to(device))
-                loss_value_j = loss_jacard.forward(pred, targets.to(device))
-                loss_value = loss_value_bce * 0.5 + loss_value_j * 0.5
+                loss_value_sce = loss_sce.forward(pred,targets.to(device))
+                loss_value_dice = loss_dice.forward(pred, targets.to(device))
+                loss_value = loss_value_sce * experiment_dict["train"]["weight_0"] + loss_value_dice * experiment_dict["train"]["weight_1"]
                 if rank != -1:
                     loss_value *= opt.world_size  # gradient averaged between devices in DDP mode
 
@@ -126,7 +125,7 @@ def train_model(train_images,train_labels,val_images,val_labels,hyp,opt,device,w
         # end epoch ----------------------------------------------------------------------------------------------------
         scheduler.step()
         final_epoch = epoch + 1 == epochs
-        results_dict = test_model(model,hyp,testloader,wandb,rank,device,opt,metrics,amp,cuda,loss_bce,loss_jacard)
+        results_dict = test_model(model,experiment_dict,testloader,wandb,rank,device,opt,metrics,amp,cuda,loss_sce,loss_dice)
         if results_dict['mean_IOU'] >= best_fitness:
             best_fitness = results_dict['mean_IOU']
             createCheckpoint(experiment_dict['savepath'],model,optimizer,epoch,scheduler)
@@ -136,7 +135,7 @@ def train_model(train_images,train_labels,val_images,val_labels,hyp,opt,device,w
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--hyp', type=str, default='configs/test_config.yaml', help='hyperparameters path')
+    parser.add_argument('--hyp', type=str, default='configs/baseline_config.yaml', help='hyperparameters path')
     parser.add_argument('--batch-size', type=int, default=12, help='total batch size for all GPUs')
     parser.add_argument('--device', default='0,1', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
     parser.add_argument('--sync-bn', action='store_true', help='use SyncBatchNorm, only available in DDP mode')
@@ -148,16 +147,6 @@ if __name__ == '__main__':
     opt.world_size = int(os.environ['WORLD_SIZE']) if 'WORLD_SIZE' in os.environ else 1
     opt.global_rank = int(os.environ['RANK']) if 'RANK' in os.environ else -1
     set_logging(opt.global_rank)
-    train_images_path = "/files/hackhathon_baseline/SBER_RZD_COMPETITION_DATASET/train_data/images"
-    train_masks_path = "/files/hackhathon_baseline/SBER_RZD_COMPETITION_DATASET/train_data/mask"
-    val_images_path = "/files/hackhathon_baseline/SBER_ADDITION_TRAIN/train/images"
-    val_masks_path = "/files/hackhathon_baseline/SBER_ADDITION_TRAIN/train/mask_ann"
-    images = [file for file in os.listdir(train_images_path)]
-    train_images_paths = [os.path.join(train_images_path, file) for file in images]
-    train_masks_paths = [os.path.join(train_masks_path, file) for file in images]
-    val_images = [file for file in os.listdir(val_images_path)]
-    val_images_paths = [os.path.join(val_images_path, file) for file in val_images]
-    val_masks_paths = [os.path.join(val_masks_path, file) for file in val_images]
     device = select_device(opt.device, batch_size=opt.batch_size)
     if opt.local_rank != -1:
         assert torch.cuda.device_count() > opt.local_rank
@@ -167,4 +156,4 @@ if __name__ == '__main__':
         assert opt.batch_size % opt.world_size == 0, '--batch-size must be multiple of CUDA device count'
         opt.batch_size = opt.total_batch_size // opt.world_size
     logger.info(opt)
-    train_model(train_images_paths,train_masks_paths,val_images_paths,val_masks_paths,opt.hyp,opt,device,wandb)
+    train_model(opt.hyp,opt,device,wandb)

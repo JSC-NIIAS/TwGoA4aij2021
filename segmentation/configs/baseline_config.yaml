@@ -1,12 +1,12 @@
-project : test_project
-experiment_name : test
-df_path : ./filtered.csv
-img_path : /files/NIIAS/
-drop : ['folder_name', 'image_name','night','snow']
-drop_after : 'spring'
+project : segmentation_baseline
+experiment_name : resnet34Linknet
 savepath : ./segmentation.pt
-
+final_model_path : ./seg_inference.pt
 dataset :
+  path_to_train_images : 
+  path_to_train_masks : 
+  path_to_val_images : 
+  path_to_val_masks : 
   test_size : 0.2
   img_size_base : [1512,2688]
   img_size_target : [640,1280]
@@ -16,14 +16,11 @@ dataset :
   std0: 0.229
   std1: 0.224
   std2: 0.225
-  split_type: stratified
 
 model :
-  name : seresnext50_32x4d
-  num_classes : 19
-  pretrained : True
-  model_type : Multitask
-  num_classes_mt : [2,3,2,12]
+  name : resnet34
+  classes : 4
+  activation : None
 
 train:
   epochs: 100
@@ -37,8 +34,6 @@ train:
   ema : False
   ema_decay : 0.9998
   accumulate_batch_size : 64
+  weight_0: 0.5
+  weight_1: 0.5
 
-validation:
-  metric : F1
-  calculation_type : by_class
-  sigmoid_treshold : 0.3
