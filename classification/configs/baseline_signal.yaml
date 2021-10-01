@@ -1,7 +1,7 @@
-project : baseline_trailing_switch_classification
-experiment_name : tr_switch_sslresnet18
-savepath : t_switch.pt
-final_model_path: tswitch_infer.pt
+project : baseline_signal_classification
+experiment_name : signal_sslresnet18
+savepath : signal.pt
+final_model_path: signal_infer.pt
 
 dataset :
   images_path : "/path_to_images"
@@ -17,20 +17,20 @@ dataset :
 
 model :
   name : ssl_resnet18
-  num_classes : 3
+  num_classes : 2
   pretrained : True
   model_type : Single
-  num_classes_mt : 3
+  num_classes_mt : 2
 
 train:
   epochs: 100
   optimizer : Adam
-  lr : 0.00003
+  lr : 0.0003
   momentum : 0.9
   weight_decay : 0.00001
   scheduler : StepLR
   step_size : 30
-  gamma : 0.5
+  gamma : 0.2
   ema : False
   ema_decay : 0.9998
   accumulate_batch_size : 64

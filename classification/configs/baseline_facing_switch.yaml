@@ -1,7 +1,7 @@
-project : baseline_trailing_switch_classification
-experiment_name : tr_switch_sslresnet18
-savepath : t_switch.pt
-final_model_path: tswitch_infer.pt
+project : baseline_facing_switch_classification
+experiment_name : f_switch_sslresnet18
+savepath : f_switch.pt
+final_model_path: fswitch_infer.pt
 
 dataset :
   images_path : "/path_to_images"
