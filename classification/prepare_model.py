@@ -14,11 +14,11 @@ def prepare_model(opt):
     model = Classification_model(model_pretrained,experiment_dict['model']['model_type'],experiment_dict['model']['num_classes_mt'])
     model=nn.DataParallel(model)
     model.load_state_dict(torch.load(experiment_dict["savepath"])["model_state_dict"])
-    model=model.module
+    model=model.module.model
     torch.save(model, experiment_dict["final_model_path"])
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--hyp', type=str, default='configs/baseline_trailing_switch.yaml', help='hyperparameters path')
+    parser.add_argument('--hyp', type=str, default='configs/baseline_signal.yaml', help='hyperparameters path')
     opt = parser.parse_args()
     prepare_model(opt)

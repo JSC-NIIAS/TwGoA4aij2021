@@ -1,0 +1,11 @@
+segmentation: "../models_checkpoints/seg_inference.pt"
+signal: "../models_checkpoints/signal_inference.pt"
+tswitch: "../models_checkpoints/tswitch_inference.pt"
+fswitch: "../models_checkpoints/fswitch_inference.pt"
+mean0: 0.485
+mean1: 0.456
+mean2: 0.406
+std0: 0.229
+std1: 0.224
+std2: 0.225
+
