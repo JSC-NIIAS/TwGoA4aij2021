@@ -2,7 +2,7 @@ segmentation: "../models_checkpoints/seg_inference.pt"
 signal: "../models_checkpoints/signal_inference.pt"
 tswitch: "../models_checkpoints/tswitch_inference.pt"
 fswitch: "../models_checkpoints/fswitch_inference.pt"
-path_to_images: "/files/hackhathon_baseline/SBER_ADDITION_TRAIN/train/images"
+path_to_images: 
 mask_save_path: "./mask_test_save"
 mean0: 0.485
 mean1: 0.456
