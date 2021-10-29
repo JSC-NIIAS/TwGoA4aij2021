@@ -1,0 +1,33 @@
+project : BirdDetNet
+experiment_name : BirdDetNet_init
+savepath : model.pt
+final_model_path: best_model.pt
+
+n_classes: 3
+
+dataset :
+  images_path : "./images"
+  labels_path : "./labels"
+  test_size : 0.2
+
+model :
+  config: "./configs/birddetnet_base.yaml"
+
+metrics: ["F1"]
+
+loss:
+  total_weights: [1, 0.98]
+  keypoint_weights: [6.853070175449893497e-06, 9.999931469298245501e-01, 9.999965734649123306e-01]
+
+train:
+  epochs: 1
+  optimizer : Adam
+  lr : 0.0003
+  momentum : 0.9
+  weight_decay : 0.00001
+  scheduler : StepLR
+  step_size : 30
+  gamma : 0.2
+  ema : False
+  ema_decay : 0.9998
+  accumulate_batch_size : 64
